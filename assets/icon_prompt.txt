@@ -1,0 +1,3 @@
+Tool: built-in image_gen
+Prompt:
+Create a single polished distinctive desktop plugin icon for a SpeedTree to Houdini bridge. A bold stylized deciduous tree silhouette transforming into a small geometric mesh lattice, with a subtle curved connecting bridge stroke. Compact centered square composition, simple broad shapes readable at 32 pixels, premium emerald green and warm amber accents, restrained dimensional shading, crisp edges, no text, no letters, no Python symbol, no official brand logos, transparent background. One icon only, not a sheet. This is a practical toolbar icon.

@@ -1,0 +1,19 @@
+QDialog#SpeedTreeBridge { background: #232a2d; color: #e5eae7; }
+QDialog#SpeedTreeBridge QLabel { color: #e5eae7; }
+QDialog#SpeedTreeBridge QLabel#bridgeTitle { font-weight: bold; }
+QDialog#SpeedTreeBridge QLabel#bridgeStatus { color: #a9bcb2; }
+QDialog#SpeedTreeBridge QGroupBox { background: #232a2d; border: 1px solid #43504c; border-radius: 5px; margin-top: 8px; padding-top: 6px; color: #b9c8bf; }
+QDialog#SpeedTreeBridge QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; }
+QDialog#SpeedTreeBridge QTabWidget::pane { background: #232a2d; border: 1px solid #43504c; border-radius: 5px; }
+QDialog#SpeedTreeBridge QTabBar::tab { background: #2c3539; color: #b6c1ba; padding: 5px 18px; margin-right: 3px; }
+QDialog#SpeedTreeBridge QTabBar::tab:selected { color: #edf5ee; border-bottom: 2px solid #79b495; }
+QDialog#SpeedTreeBridge QLineEdit, QDialog#SpeedTreeBridge QDoubleSpinBox, QDialog#SpeedTreeBridge QComboBox { background: #1c2326; color: #e5eae7; border: 1px solid #4b5954; border-radius: 3px; padding: 3px 6px; }
+QDialog#SpeedTreeBridge QDoubleSpinBox QLineEdit { padding: 0; border: none; background: transparent; }
+QDialog#SpeedTreeBridge QPlainTextEdit { background: #1c2326; color: #b6c7bd; border: 1px solid #3e4a45; border-radius: 4px; padding: 4px; }
+QDialog#SpeedTreeBridge QCheckBox { color: #e5eae7; padding: 2px 0; }
+QDialog#SpeedTreeBridge QPushButton { background: #303d3d; color: #e5eae7; border: 1px solid #4a5a53; border-radius: 4px; padding: 4px 10px; }
+QDialog#SpeedTreeBridge QPushButton:hover { background: #3d5146; }
+QDialog#SpeedTreeBridge QPushButton#primaryAction { background: #46795c; border: 1px solid #6da484; font-weight: bold; }
+QDialog#SpeedTreeBridge QPushButton#primaryAction:hover { background: #50886a; }
+QDialog#SpeedTreeBridge QPushButton#primaryAction:disabled { background: #34433b; color: #94a499; }
+QDialog#SpeedTreeBridge QPushButton#detailsAction { background: transparent; border: none; color: #a9bcb2; padding: 2px 0; }
