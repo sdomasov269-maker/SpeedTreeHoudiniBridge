@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mainMenu>
+  <menuBar>
+    <subMenu id="speedtree_bridge_menu">
+      <label>SpeedTree Bridge</label>
+      <insertBefore>help_menu</insertBefore>
+      <scriptItem id="speedtree_bridge_open_menu">
+        <label>Open SpeedTree Bridge</label>
+        <scriptCode><![CDATA[
+from bridge.native_ui import show
+import hdefereval
+hdefereval.executeDeferred(show)
+]]></scriptCode>
+      </scriptItem>
+      <scriptItem id="speedtree_bridge_reframe_camera">
+        <label>Reframe Selected Camera</label>
+        <scriptCode><![CDATA[
+import importlib, bridge.scene, hdefereval
+importlib.reload(bridge.scene)
+hdefereval.executeDeferred(bridge.scene.reframe_selected)
+]]></scriptCode>
+      </scriptItem>
+    </subMenu>
+  </menuBar>
+</mainMenu>
