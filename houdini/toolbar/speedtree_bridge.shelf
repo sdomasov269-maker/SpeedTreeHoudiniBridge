@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <toolshelf name="speedtree_bridge" label="SpeedTree Bridge">
+    <memberTool name="speedtree_bridge_open"/>
+  </toolshelf>
+  <tool name="speedtree_bridge_open" label="SpeedTree Bridge" icon="speedtree_bridge.png">
+    <script scriptType="python"><![CDATA[
+from bridge.native_ui import show
+show()
+]]></script>
+  </tool>
+  <tool name="speedtree_bridge_connect" label="Connect Bridge" icon="MISC_python">
+    <script scriptType="python"><![CDATA[
+import runpy
+from pathlib import Path
+import hou
+runpy.run_path(str(Path(hou.text.expandString("$SPEEDTREE_BRIDGE_ROOT")) / "Connect Houdini.py"))
+]]></script>
+  </tool>
+  <tool name="speedtree_bridge_import" label="Import Package" icon="MISC_python">
+    <script scriptType="python"><![CDATA[
+import runpy
+from pathlib import Path
+import hou
+runpy.run_path(str(Path(hou.text.expandString("$SPEEDTREE_BRIDGE_ROOT")) / "Import Bridge.py"))
+]]></script>
+  </tool>
+  <tool name="speedtree_bridge_stop" label="Disconnect" icon="MISC_python">
+    <script scriptType="python"><![CDATA[
+from bridge.receiver import stop
+stop()
+]]></script>
+  </tool>
+</shelfDocument>
