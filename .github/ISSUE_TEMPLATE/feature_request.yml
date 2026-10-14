@@ -1,0 +1,10 @@
+name: Feature request
+description: Suggest an improvement
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow and proposed improvement
+      description: Explain the export, renderer and desired result.
+    validations:
+      required: true
