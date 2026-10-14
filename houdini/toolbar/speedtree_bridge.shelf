@@ -2,6 +2,8 @@
 <shelfDocument>
   <toolshelf name="speedtree_bridge" label="SpeedTree Bridge">
     <memberTool name="speedtree_bridge_open"/>
+    <memberTool name="speedtree_bridge_connect"/>
+    <memberTool name="speedtree_bridge_stop"/>
   </toolshelf>
   <tool name="speedtree_bridge_open" label="SpeedTree Bridge" icon="speedtree_bridge.png">
     <script scriptType="python"><![CDATA[
