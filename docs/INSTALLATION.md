@@ -10,7 +10,7 @@ Houdini 21.0.596 and 22.0.368 have been tested. The 19/20 adapters have not been
 
 ## 2. Download and extract
 
-On GitHub, choose **Code → Download ZIP**. Extract the archive, then move the folder containing `install_houdini.py`, `bridge` and `houdini` to a permanent writable location, for example:
+On GitHub, open **Releases** and download the latest installable release ZIP. Extract the archive, then move the folder containing `install_houdini.py`, `bridge` and `houdini` to a permanent writable location, for example:
 
 ```text
 C:\Tools\SpeedTreeHoudiniBridge
