@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible Bridge problem
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Bridge version, exact Houdini build, Python and renderer integration version
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps and expected result
+      description: Include export format and selected import options.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics and actual result
+      description: Copy Details text. Remove private paths. Share only assets you may distribute.
+    validations:
+      required: true
