@@ -3,6 +3,7 @@ import argparse
 import json
 import shutil
 import os
+import sys
 from pathlib import Path
 VERSIONS = ("19.0", "19.5", "20.0", "20.5", "21.0", "22.0")
 
@@ -31,6 +32,14 @@ def install(preferences):
     return target
 
 
+def preferences_folder(version, base=None):
+    if base is not None:
+        return Path(base) / ("houdini" + version)
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Preferences" / "houdini" / version
+    return documents_folder() / ("houdini" + version)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("preferences", type=Path, nargs="?")
@@ -43,9 +52,8 @@ if __name__ == "__main__":
     if args.version and args.preferences:
         parser.error("Choose --version or an explicit preferences path")
     if args.all or args.version:
-        base = args.documents or documents_folder()
         for version in VERSIONS if args.all else (args.version,):
-            print(install(base / ("houdini" + version)))
+            print(install(preferences_folder(version, args.documents)))
     elif args.preferences:
         print(install(args.preferences))
     else:

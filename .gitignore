@@ -13,6 +13,8 @@ tools/*.json
 tools/probe_tree.py
 tests/real_tree.py
 dist/
+live_cache/
+live_settings.json
 .venv/
 .DS_Store
 Thumbs.db
