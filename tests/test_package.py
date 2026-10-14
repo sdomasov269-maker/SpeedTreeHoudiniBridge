@@ -32,9 +32,34 @@ class PackageTests(unittest.TestCase):
         package = read_export(self.write('<Material Name="leaf"><Map Name="Color" File="leaf.&lt;UDIM&gt;.png"/></Material>'))
         self.assertFalse(package["warnings"])
 
+    def test_literal_brackets_and_udim_files(self):
+        (self.directory / 'leaf[oak].1001.png').touch()
+        data = read_export(self.write('<Material Name="leaf"><Map Name="Color" File="leaf[oak].&lt;UDIM&gt;.png"/></Material>'))
+        self.assertFalse(data['warnings'])
+        (self.directory / 'directory.png').mkdir()
+        data = read_export(self.write('<Material Name="leaf"><Map Name="Color" File="directory.png"/></Material>'))
+        self.assertTrue(data['warnings'])
+
+    def test_packed_channels_and_alpha(self):
+        (self.directory / 'packed.png').touch()
+        path = self.write('<Material Name="leaf"><Map Name="Opacity" File="packed.png" Channel="a"/><Map Name="Roughness" File="packed.png" Channel="g"/></Material>')
+        maps = make_request(path, 'redshift', {})['materials'][0]['maps']
+        self.assertEqual(maps['Opacity']['channel'], 'a')
+        self.assertEqual(maps['Roughness']['channel'], 'g')
+        for name, component in (('Opacity', 'z'), ('Normal', 'r')):
+            with self.subTest(name=name), self.assertRaises(ValueError):
+                read_export(self.write('<Material Name="leaf"><Map Name="{}" File="packed.png" Channel="{}"/></Material>'.format(name, component)))
+
     def test_duplicate_material(self):
         with self.assertRaises(ValueError):
             read_export(self.write('<Material Name="x"/><Material Name="x"/>'))
+
+    def test_windows_relative_paths(self):
+        (self.directory / 'textures').mkdir()
+        (self.directory / 'textures' / 'leaf.png').touch()
+        data = read_export(self.write('<Material Name="leaf"><Map Name="Color" File="textures\\leaf.png"/></Material>'))
+        self.assertFalse(data['warnings'])
+        self.assertEqual(data['materials'][0]['maps']['Color']['file'], (self.directory / 'textures' / 'leaf.png').as_posix())
 
     def test_vertex_opacity_can_be_submitted(self):
         request = make_request(self.write('<Material Name="leaf" VertexOpacity="1"/>'), "arnold", {})
@@ -47,9 +72,31 @@ class PackageTests(unittest.TestCase):
             with self.subTest(settings=settings), self.assertRaises(ValueError):
                 make_request(path, "arnold", settings)
 
+    def test_karma_settings(self):
+        path = self.write('<Material Name="bark"/>')
+        settings = make_request(path, 'karma', {'solaris': {'engine': 'xpu', 'resolution_x': 1920, 'samples': 64}})['settings']['solaris']
+        self.assertEqual(settings['engine'], 'xpu')
+        self.assertEqual(settings['resolution_x'], 1920)
+        self.assertEqual(settings['samples'], 64)
+        for options in ({'engine': 'invalid'}, {'resolution_y': 0}, {'samples': 'nan'}, {'samples': 1.5}, {'output_image': ''}):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                make_request(path, 'karma', {'solaris': options})
+
     def test_missing_mesh(self):
         with self.assertRaises(ValueError):
             read_export(self.write('<Material Name="x"/>', "missing.fbx"))
+
+    def test_solaris_renderer_context(self):
+        path = self.write('<Material Name="bark"/>')
+        for renderer in ('arnold', 'redshift'):
+            self.assertEqual(make_request(path, renderer, {})['settings']['context'], 'obj')
+            data = make_request(path, renderer, {'context': 'solaris'})['settings']
+            self.assertEqual(data['context'], 'solaris')
+            self.assertEqual(data['solaris']['samples'], 3 if renderer == 'arnold' else 128)
+        for renderer, options in (('karma', {'context': 'obj'}), ('arnold', {'context': 'unknown'}),
+                                  ('arnold', {'context': 'solaris', 'solaris': {'samples': 128}})):
+            with self.subTest(renderer=renderer, options=options), self.assertRaises(ValueError):
+                make_request(path, renderer, options)
 
 
 if __name__ == "__main__":

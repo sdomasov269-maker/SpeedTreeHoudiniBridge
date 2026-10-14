@@ -7,8 +7,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bridge.compat import QtWidgets
 from bridge.native_ui import BridgeDialog
 app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-dialog = BridgeDialog()
-assert dialog.tabs.count() == 2
+config_temp = tempfile.TemporaryDirectory()
+dialog = BridgeDialog(config_path=Path(config_temp.name) / 'settings.json')
+assert dialog.tabs.count() == 3
+assert dialog.sections.count() == 4
 dialog.profiles["arnold"]["roughness"].setValue(.25)
 dialog.profiles["redshift"]["roughness"].setValue(.75)
 assert dialog.settings()["arnold"]["roughness"] == .25
@@ -39,4 +41,5 @@ dialog.show()
 app.processEvents()
 assert dialog.isVisible()
 dialog.close()
+config_temp.cleanup()
 print("Native Qt window, settings, validation, and direct scene import: PASS")

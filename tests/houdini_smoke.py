@@ -57,8 +57,11 @@ with tempfile.TemporaryDirectory() as directory:
                 for path in duplicate["materials"].values():
                     hou.node(path).destroy()
             else:
-                assert result["render_output"] is None
-                assert set(hou.node("/out").children()) == outputs_before
+                output = hou.node(result["render_output"])
+                assert output.type().name() == "Redshift_ROP"
+                assert output.parm("RS_objects_candidate").eval() == result["root"] + "/*"
+                assert output.parm("RS_renderCamera").eval() == camera.path()
+                assert set(hou.node("/out").children()) == outputs_before | {output}
             assert root.parm("scale").eval() == .01
             leaf = hou.node(result["materials"]["leaf"])
             surface = leaf.node("surface")
