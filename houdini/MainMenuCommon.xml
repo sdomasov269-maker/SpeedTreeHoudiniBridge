@@ -13,11 +13,26 @@ hdefereval.executeDeferred(show)
 ]]></scriptCode>
       </scriptItem>
       <scriptItem id="speedtree_bridge_reframe_camera">
-        <label>Reframe Selected Camera</label>
+        <label>Reframe Tree / Camera</label>
         <scriptCode><![CDATA[
 import importlib, bridge.scene, hdefereval
 importlib.reload(bridge.scene)
 hdefereval.executeDeferred(bridge.scene.reframe_selected)
+]]></scriptCode>
+      </scriptItem>
+      <scriptItem id="speedtree_bridge_connect_live">
+        <label>Connect Live Bridge</label>
+        <scriptCode><![CDATA[
+from bridge.receiver import start
+import hou
+hou.ui.displayMessage(start())
+]]></scriptCode>
+      </scriptItem>
+      <scriptItem id="speedtree_bridge_disconnect_live">
+        <label>Disconnect Live Bridge</label>
+        <scriptCode><![CDATA[
+from bridge.receiver import stop
+stop()
 ]]></scriptCode>
       </scriptItem>
     </subMenu>
