@@ -24,6 +24,27 @@ def connected_input(node, name):
     return inputs[index] if index < len(inputs) else None
 
 
+def connect_existing(target, target_input, source, source_input):
+    """Keep the selected output component when inserting a combine shader."""
+    index = source.inputNames().index(source_input)
+    connection = next((c for c in source.inputConnections() if c.inputIndex() == index), None)
+    if connection is None:
+        return False
+    target.setNamedInput(target_input, connection.inputNode(), connection.outputIndex())
+    return True
+
+
+def texture_output(builder, texture, data, arnold):
+    component = data.get("channel", "rgb")
+    if component == "rgb":
+        return texture, "rgba" if arnold else "outColor"
+    if arnold:
+        return texture, component
+    splitter = builder.createNode("redshift::RSColorSplitter", texture.name() + "_channels")
+    splitter.setNamedInput("input", texture, "outColor")
+    return splitter, "out" + component.upper()
+
+
 def redshift_surface_type(builder):
     types = builder.childTypeCategory().nodeTypes()
     for kind in ("redshift::StandardMaterial", "redshift::Material"):
@@ -33,6 +54,9 @@ def redshift_surface_type(builder):
 
 
 def create_material(parent, material, renderer, settings, node_name=None):
+    if renderer == 'karma':
+        from .materialx import create_material as create_materialx
+        return create_materialx(parent, material, settings, node_name or safe_name(material['name']))
     before = set(parent.children())
     try:
         return _create_material(parent, material, renderer, settings, node_name)
@@ -44,13 +68,21 @@ def create_material(parent, material, renderer, settings, node_name=None):
 
 def _create_material(parent, material, renderer, settings, node_name):
     arnold = renderer == "arnold"
-    builder = parent.createNode("arnold_materialbuilder" if arnold else "redshift_vopnet", node_name or safe_name(material["name"]))
+    usd_redshift = not arnold and settings.get('context') == 'solaris'
+    builder = parent.createNode('subnet' if usd_redshift else ("arnold_materialbuilder" if arnold else "redshift_vopnet"), node_name or safe_name(material["name"]))
     builder.setUserData("speedtree_bridge_renderer", renderer)
     builder.setUserData("speedtree_bridge_material", material["name"])
-    output = next(n for n in builder.children() if n.type().name() in ("arnold_material", "redshift_material"))
+    output = None if usd_redshift else next(n for n in builder.children() if n.type().name() in ("arnold_material", "redshift_material"))
     for child in builder.children():
         if child != output:
             child.destroy()
+    if usd_redshift:
+        builder.setMaterialFlag(True)
+        output = builder.createNode('redshift_usd_material', 'output')
+        terminal = builder.createNode('subnetconnector', 'surface_output')
+        terminal.setParms({'parmname': 'surface', 'parmlabel': 'Surface', 'parmtype': 24,
+                           'connectorkind': 1, 'useasparmdefiner': 0})
+        terminal.setInput(0, output)
     kind = "arnold::standard_surface" if arnold else redshift_surface_type(builder)
     legacy_rs = kind == "redshift::Material"
     base_color = "diffuse_color" if legacy_rs else "base_color"
@@ -94,10 +126,15 @@ def _create_material(parent, material, renderer, settings, node_name):
         set_value(texture, "filename" if arnold else "tex0", data["file"])
         color = channel in {"Color", "Specular", "SubsurfaceColor"}
         set_value(texture, "color_space" if arnold else "tex0_colorSpace", "sRGB" if color else "Raw")
-        out = "rgba" if arnold else "outColor"
-        if channel == "Gloss":
+        if channel == "Gloss" and data.get("channel") != "a":
             set_value(texture, "multiply" if arnold else "color_multiplier", [-1, -1, -1])
             set_value(texture, "offset" if arnold else "color_offset", [1, 1, 1])
+        signal, out = texture_output(builder, texture, data, arnold)
+        if channel == "Gloss" and data.get("channel") == "a":
+            invert = builder.createNode("arnold::subtract" if arnold else "redshift::RSMathSubVector", "gloss_alpha_to_roughness")
+            set_value(invert, "input1", [1, 1, 1])
+            invert.setNamedInput("input2", signal, out)
+            signal, out = invert, "rgb" if arnold else "out"
         if channel == "Normal":
             normal = builder.createNode("arnold::normal_map" if arnold else "redshift::BumpMap", "normal_decode")
             normal.setNamedInput("input", texture, out)
@@ -107,9 +144,9 @@ def _create_material(parent, material, renderer, settings, node_name):
                 set_value(normal, "inputType", "1")
             surface.setNamedInput("normal" if arnold else "bump_input", normal, "vector" if arnold else "out")
         else:
-            if arnold and dest in {"metalness", "specular_roughness", "subsurface"}:
+            if arnold and data.get("channel", "rgb") == "rgb" and dest in {"metalness", "specular_roughness", "subsurface"}:
                 out = "r"
-            surface.setNamedInput(dest, texture, out)
+            surface.setNamedInput(dest, signal, out)
     if material["vertex_opacity"]:
         opacity_input = "opacity" if arnold else "opacity_color"
         existing = connected_input(surface, opacity_input)
@@ -117,9 +154,7 @@ def _create_material(parent, material, renderer, settings, node_name):
         set_value(vertex, "attribute", "Alpha")
         set_value(vertex, "default", 1.0)
         combine = builder.createNode("arnold::multiply" if arnold else "redshift::RSMathMulVector", "opacity_times_vertex")
-        if existing is not None:
-            combine.setNamedInput("input1", existing, "rgba" if arnold else "outColor")
-        else:
+        if not connect_existing(combine, "input1", surface, opacity_input):
             set_value(combine, "input1", surface.parmTuple(opacity_input).eval())
         combine.setNamedInput("input2", vertex, "float" if arnold else "out")
         surface.setNamedInput(opacity_input, combine, "rgb" if arnold else "out")
@@ -127,15 +162,14 @@ def _create_material(parent, material, renderer, settings, node_name):
         ao = material["maps"]["AO"]
         combine = builder.createNode("arnold::multiply" if arnold else "redshift::RSMathMulVector", "color_times_ao")
         existing = connected_input(surface, base_color)
-        if existing:
-            combine.setNamedInput("input1", existing, "rgba" if arnold else "outColor")
-        else:
+        if not connect_existing(combine, "input1", surface, base_color):
             set_value(combine, "input1", surface.parmTuple(base_color).eval())
         if "file" in ao:
             tex = builder.createNode("arnold::image" if arnold else "redshift::TextureSampler", "AO")
             set_value(tex, "filename" if arnold else "tex0", ao["file"])
             set_value(tex, "color_space" if arnold else "tex0_colorSpace", "Raw")
-            combine.setNamedInput("input2", tex, "rgba" if arnold else "outColor")
+            signal, out = texture_output(builder, tex, ao, arnold)
+            combine.setNamedInput("input2", signal, out)
         else:
             set_value(combine, "input2", ao["value"])
         surface.setNamedInput(base_color, combine, "rgb" if arnold else "out")
@@ -154,6 +188,22 @@ def create_arnold_output(root, name):
             set_value(node, "camera", cameras[0].path())
         # Use Arnold's image viewer output. The user can choose a file or camera on the ROP.
         set_value(node, "ar_picture", "ip")
+        node.moveToGoodPosition()
+        return node
+    except Exception:
+        node.destroy()
+        raise
+
+
+def create_redshift_output(root, name):
+    import hou
+    node = hou.node("/out").createNode("Redshift_ROP", safe_name(name) + "_redshift")
+    try:
+        node.setUserData("speedtree_bridge_root", root.path())
+        set_value(node, "RS_objects_candidate", root.path() + "/*")
+        cameras = [n for n in hou.node("/obj").allSubChildren() if n.type().name() == "cam"]
+        if len(cameras) == 1:
+            set_value(node, "RS_renderCamera", cameras[0].path())
         node.moveToGoodPosition()
         return node
     except Exception:
@@ -214,12 +264,16 @@ def import_package(filename):
     if len(names) != len(set(names)):
         raise ValueError("Material names collide after normalization")
     renderer = package["renderer"]
-    kind = "arnold_materialbuilder" if renderer == "arnold" else "redshift_vopnet"
+    if package['settings']['context'] == 'solaris':
+        from .solaris import require_renderer
+        require_renderer(renderer, package['settings']['solaris'].get('engine', 'cpu'))
+    kind = {'arnold': 'arnold_materialbuilder', 'redshift': 'redshift_vopnet', 'karma': 'subnet'}[renderer]
     if hou.node("/mat").childTypeCategory().nodeTypes().get(kind) is None:
         raise RuntimeError(f"{renderer} is not loaded in this Houdini session")
     root = None
     created_materials = []
     render_output = None
+    solaris_setup = None
     scene_setup = {"nodes": [], "camera": None, "lights": []}
     with hou.undos.group("Import SpeedTree Bridge"):
         try:
@@ -243,6 +297,10 @@ def import_package(filename):
                 messages = ""
             root.setUserData("speedtree_bridge_source", package["source"])
             set_value(root, "scale", package["settings"]["scale"])
+            # SpeedTree OBJ exports use Z-up; Houdini's scene and cameras use Y-up.
+            # FBX axis conversion is already handled by Houdini's FBX importer.
+            if mesh.suffix.lower() == '.obj':
+                set_value(root, 'rx', -90)
             network = hou.node("/mat")
             mapping = {}
             for m in package["materials"]:
@@ -292,16 +350,23 @@ def import_package(filename):
                 raise ValueError("Mesh import produced zero primitives")
             from .scene import setup_scene
             scene_setup = setup_scene(root, renderer, package["settings"])
-            if renderer == "arnold":
-                render_output = create_arnold_output(root, mesh.stem)
+            if package['settings']['context'] == 'solaris':
+                from .solaris import setup_solaris
+                solaris_setup = setup_solaris(root, scene_setup, package['settings'], renderer)
+                render_output = solaris_setup['render_output']
+            else:
+                render_output = (create_arnold_output if renderer == "arnold" else create_redshift_output)(root, mesh.stem)
+                camera_parm = "camera" if renderer == "arnold" else "RS_renderCamera"
                 if scene_setup["camera"]:
-                    set_value(render_output, "camera", scene_setup["camera"])
-                root.setUserData("speedtree_bridge_render_output", render_output.path())
+                    set_value(render_output, camera_parm, scene_setup["camera"])
+            root.setUserData("speedtree_bridge_render_output", render_output.path())
             root.layoutChildren()
             root.moveToGoodPosition()
             notes = []
-            if render_output is not None and hou.node(render_output.parm("camera").eval()) is None:
-                notes.append("Arnold output created; select a camera in its Camera parameter before rendering.")
+            if solaris_setup and not scene_setup['camera']:
+                notes.append(renderer.title() + ' USD output created; set a USD camera in Render Settings before rendering.')
+            elif not solaris_setup and render_output is not None and hou.node(render_output.parm(camera_parm).eval()) is None:
+                notes.append(f"{renderer.title()} output created; select a camera before rendering.")
             for m in package["materials"]:
                 if "file" in m["maps"].get("Height", {}):
                     notes.append(f"{m['name']}: Height retained as metadata; displacement is not enabled.")
@@ -310,10 +375,13 @@ def import_package(filename):
                         notes.append(f"{m['name']}: {channel} retained as metadata, not connected to shading.")
             return {"root": root.path(), "materials": mapping, "primitives": count, "messages": messages,
                     "notes": notes, "render_output": render_output.path() if render_output else None,
-                    "camera": scene_setup["camera"], "lights": scene_setup["lights"]}
+                    "camera": scene_setup["camera"], "lights": scene_setup["lights"],
+                    "stage": solaris_setup['stage'] if solaris_setup else None}
         except Exception:
             if render_output is not None:
                 render_output.destroy()
+            if solaris_setup:
+                hou.node(solaris_setup['stage']).destroy()
             for node in reversed(scene_setup["nodes"]):
                 node.destroy()
             if root is not None:
