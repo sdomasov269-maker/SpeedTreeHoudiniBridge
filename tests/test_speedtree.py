@@ -24,7 +24,7 @@ class SpeedTreeTests(unittest.TestCase):
 
     def test_export_checks_outputs_and_uses_argument_list(self):
         with tempfile.TemporaryDirectory(prefix='tree with spaces ') as directory:
-            base = Path(directory)
+            base = Path(directory).resolve()
             exe, project = base / 'modeler.exe', base / 'test.spm'
             exe.touch(); project.touch()
             def exporter(command, **kwargs):
